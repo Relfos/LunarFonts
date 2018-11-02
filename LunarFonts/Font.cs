@@ -5,13 +5,13 @@ using System.Text;
 namespace LunarLabs.Fonts
 {
 
-    public class Image
+    public class PixelTarget
     {
         public readonly int Width;
         public readonly int Height;
         public readonly byte[] Pixels;
 
-        public Image(int width, int height)
+        public PixelTarget(int width, int height)
         {
             Width = width;
             Height = height;
@@ -19,9 +19,9 @@ namespace LunarLabs.Fonts
         }
     }
 
-    public class Glyph
+    public class GlyphTarget
     {
-        public Image Image { get; internal set; }
+        public PixelTarget Image { get; internal set; }
         public int xOfs { get; internal set; }
         public int yOfs { get; internal set; }
         public int xAdvance { get; internal set; }
@@ -34,16 +34,14 @@ namespace LunarLabs.Fonts
         public short cx;
         public short cy;
         public byte vertexType;
-        public byte padding;
 
-        public Vertex(byte vertexType, short x, short y, short cx, short cy, byte padding = 0)
+        public Vertex(byte vertexType, short x, short y, short cx, short cy)
         {
             this.vertexType = vertexType;
             this.x = x;
             this.y = y;
             this.cx = cx;
             this.cy = cy;
-            this.padding = padding;
         }
     }
 
@@ -313,12 +311,12 @@ namespace LunarLabs.Fonts
             return height / fHeight;
         }
 
-        private Image GetCodepointBitmap(float scaleX, float scaleY, int codepoint, out int xoff, out int yoff)
+        private PixelTarget GetCodepointBitmap(float scaleX, float scaleY, int codepoint, out int xoff, out int yoff)
         {
             return GetGlyphBitmap(scaleX, scaleY, 0, 0, FindGlyphIndex(codepoint), out xoff, out yoff);
         }
 
-        private Image GetGlyphBitmap(float scale_x, float scale_y, float shift_x, float shift_y, int glyph, out int xoff, out int yoff)
+        private PixelTarget GetGlyphBitmap(float scale_x, float scale_y, float shift_x, float shift_y, int glyph, out int xoff, out int yoff)
         {
             var vertices = GetGlyphShape(glyph);
 
@@ -348,7 +346,7 @@ namespace LunarLabs.Fonts
             }
 
             // now we get the size
-            var result = new Image(w, h);
+            var result = new PixelTarget(w, h);
             xoff = ix0;
             yoff = iy0;
             Rasterize(result, 0.35f, vertices, scale_x, scale_y, shift_x, shift_y, ix0, iy0, true);
@@ -930,7 +928,6 @@ namespace LunarLabs.Fonts
         {
             float objspace_flatness_squared = objSpaceFlatness * objSpaceFlatness;
             int n = 0;
-            int start = 0;
 
             // count how many "moves" there are to get the contour count
             for (int i = 0; i < vertices.Count; i++)
@@ -949,6 +946,7 @@ namespace LunarLabs.Fonts
             //SetLength(Contours.List, N);
 
             int numPoints = 0;
+            int start = 0;
 
             // make two passes through the points so we don't need to realloc
             for (int pass = 0; pass <= 1; pass++)
@@ -957,7 +955,7 @@ namespace LunarLabs.Fonts
                 float y = 0;
                 if (pass == 1)
                 {
-                    windings = new List<Point>(numPoints * 2);
+                    windings = new List<Point>(numPoints);
                 }
 
                 numPoints = 0;
@@ -1018,7 +1016,7 @@ namespace LunarLabs.Fonts
             }
         }
 
-        private void Rasterize(Image bitmap, float flatnessInPixels, List<Vertex> vertices, float scaleX, float scaleY, float shiftX, float shiftY, int XOff, int YOff, bool Invert)
+        private void Rasterize(PixelTarget bitmap, float flatnessInPixels, List<Vertex> vertices, float scaleX, float scaleY, float shiftX, float shiftY, int XOff, int YOff, bool Invert)
         {
             float scale = scaleX < scaleY ? scaleX : scaleY;
 
@@ -1032,16 +1030,14 @@ namespace LunarLabs.Fonts
             }
         }
 
-        private void Rasterize(Image bitmap, List<Point> points, List<int> windings, float scaleX, float scaleY, float shiftX, float shiftY, int XOff, int YOff, bool invert)
+        private void Rasterize(PixelTarget bitmap, List<Point> points, List<int> windings, float scaleX, float scaleY, float shiftX, float shiftY, int XOff, int YOff, bool invert)
         {
-
             int ptOfs = 0;
 
+            float yScaleInv = invert ? -scaleY : scaleY;
 
-            float YScaleInv = invert ? -scaleY : scaleY;
-
-            // vsubsample should divide 255 evenly; otherwise we won't reach full opacity
-            int VSubSample = (bitmap.Height < 8) ? 15 : 5;
+            // this value should divide 255 evenly; otherwise we won't reach full opacity
+            int vSubSamples = (bitmap.Height < 8) ? 15 : 5;
 
             var edgeList = new EdgeList();
             int m = 0;
@@ -1076,9 +1072,9 @@ namespace LunarLabs.Fonts
                         }
 
                         en.x0 = points[ptOfs + a].x * scaleX + shiftX;
-                        en.y0 = points[ptOfs + a].y * YScaleInv * VSubSample + shiftY;
+                        en.y0 = points[ptOfs + a].y * yScaleInv * vSubSamples + shiftY;
                         en.x1 = points[ptOfs + b].x * scaleX + shiftX;
-                        en.y1 = points[ptOfs + b].y * YScaleInv * VSubSample + shiftY;
+                        en.y1 = points[ptOfs + b].y * yScaleInv * vSubSamples + shiftY;
 
                         edgeList.Add(en);
                     }
@@ -1099,7 +1095,7 @@ namespace LunarLabs.Fonts
             edgeList.Add(temp);
 
             // now, traverse the scanlines and find the intersections on each scanline, use xor winding rule
-            RasterizeSortedEdges(bitmap, edgeList, VSubSample, XOff, YOff);
+            RasterizeSortedEdges(bitmap, edgeList, vSubSamples, XOff, YOff);
         }
 
         private ActiveEdge CreateActiveEdge(Edge edge, int offX, float startPoint)
@@ -1190,7 +1186,7 @@ namespace LunarLabs.Fonts
             }
         }
 
-        private void RasterizeSortedEdges(Image bitmap, EdgeList e, int vSubSamples, int offX, int off_y)
+        private void RasterizeSortedEdges(PixelTarget bitmap, EdgeList e, int vSubSamples, int offX, int off_y)
         {
             int eIndex = 0;
             int n = e.Count - 1;
@@ -1335,7 +1331,7 @@ namespace LunarLabs.Fonts
             return (P > 0);
         }
 
-        public Glyph RenderGlyph(char ID, int size)
+        public GlyphTarget RenderGlyph(char ID, int size)
         {
             if (!HasGlyph(ID))
             {
@@ -1344,7 +1340,7 @@ namespace LunarLabs.Fonts
 
             _scale = this.ScaleForPixelHeight(size);
 
-            var glyph = new Glyph();
+            var glyphTarget = new GlyphTarget();
 
             /*if (ID == 32)
             {
@@ -1361,14 +1357,14 @@ namespace LunarLabs.Fonts
             int xOfs, yOfs;
             var img = GetCodepointBitmap(_scale, _scale, ID, out xOfs, out yOfs);
 
-            glyph.xOfs = xOfs;
-            glyph.yOfs = yOfs;
+            glyphTarget.xOfs = xOfs;
+            glyphTarget.yOfs = yOfs;
 
             int xAdv, lsb;
             GetCodepointHMetrics(ID, out xAdv, out lsb);
-            glyph.xAdvance = (int)Math.Floor(xAdv * _scale);
+            glyphTarget.xAdvance = (int)Math.Floor(xAdv * _scale);
 
-            return glyph;
+            return glyphTarget;
         }
     }
 }
