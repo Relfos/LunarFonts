@@ -94,9 +94,9 @@ namespace LunarLabs.Fonts
         private const byte VLINE = 2;
         private const byte VCURVE = 3;
 
-        public void LoadFromStream(byte[] source)
+        public Font(byte[] bytes)
         {
-            _data = source;
+            _data = bytes;
 
             var cmap = FindTable("cmap");
             _loca = FindTable("loca");
