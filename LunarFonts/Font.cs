@@ -19,6 +19,14 @@ namespace LunarLabs.Fonts
         }
     }
 
+    public class Glyph
+    {
+        public Image Image { get; internal set; }
+        public int xOfs { get; internal set; }
+        public int yOfs { get; internal set; }
+        public int xAdvance { get; internal set; }
+    }
+
     internal struct Vertex
     {
         public short x;
@@ -1327,7 +1335,7 @@ namespace LunarLabs.Fonts
             return (P > 0);
         }
 
-        public Image RenderGlyph(char ID, int size)
+        public Glyph RenderGlyph(char ID, int size)
         {
             if (!HasGlyph(ID))
             {
@@ -1336,6 +1344,7 @@ namespace LunarLabs.Fonts
 
             _scale = this.ScaleForPixelHeight(size);
 
+            var glyph = new Glyph();
 
             /*if (ID == 32)
             {
@@ -1352,10 +1361,14 @@ namespace LunarLabs.Fonts
             int xOfs, yOfs;
             var img = GetCodepointBitmap(_scale, _scale, ID, out xOfs, out yOfs);
 
-            //stbtt_GetCodepointHMetrics(CharValue(ID), XAdv, lsb);
-            //Result := Font.AddGlyphFromImage(ID, Img, XOfs, YOfs, Trunc(XAdv* _Scale));
+            glyph.xOfs = xOfs;
+            glyph.yOfs = yOfs;
 
-            return img;
+            int xAdv, lsb;
+            GetCodepointHMetrics(ID, out xAdv, out lsb);
+            glyph.xAdvance = (int)Math.Floor(xAdv * _scale);
+
+            return glyph;
         }
     }
 }
