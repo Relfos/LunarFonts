@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>LunarLabs.Fonts</RootNamespace>
+    <PackageId>LunarLabs.Fonts</PackageId>
+    <Authors>Sergio Flores</Authors>
+    <Company>Lunar Labs</Company>
+    <Product>LunarLabs.Fonts</Product>
+    <Description>Font loader / rasterizer for TTF format in pure C#.</Description>
+    <PackageLicenseUrl>https://github.com/Relfos/LunarFonts/blob/master/LICENSE</PackageLicenseUrl>
+    <RepositoryUrl>https://github.com/Relfos/LunarFonts</RepositoryUrl>
+    <PackageTags>font,text,rendering,ttf,rasterizer</PackageTags>
+  </PropertyGroup>
+
+</Project>
