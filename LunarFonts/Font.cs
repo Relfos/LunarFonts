@@ -26,6 +26,15 @@ namespace LunarLabs.Fonts
         public int xAdvance { get; internal set; }
     }
 
+    internal struct Edge
+    {
+        public float x0;
+        public float y0;
+        public float x1;
+        public float y1;
+        public bool invert;
+    }
+
     internal struct Vertex
     {
         public short x;
@@ -1049,7 +1058,7 @@ namespace LunarLabs.Fonts
             // this value should divide 255 evenly; otherwise we won't reach full opacity
             int vSubSamples = (bitmap.Height < 8) ? 15 : 5;
 
-            var edgeList = new EdgeList();
+            var edgeList = new List<Edge>(16);
             int m = 0;
 
             for (int i = 0; i < windings.Length; i++)
@@ -1097,7 +1106,7 @@ namespace LunarLabs.Fonts
             points.Clear();
 
             // now sort the edges by their highest point (should snap to integer, and then by x)
-            edgeList.Sort();
+            edgeList.Sort((x,y) => EdgeCompare(x,y));
 
             var temp = new Edge();
             temp.y0 = 10000000;
@@ -1105,6 +1114,17 @@ namespace LunarLabs.Fonts
 
             // now, traverse the scanlines and find the intersections on each scanline, use xor winding rule
             RasterizeSortedEdges(bitmap, edgeList, vSubSamples, XOff, YOff);
+        }
+
+        private int EdgeCompare(Edge pa, Edge pb)
+        {
+            if (pa.y0 < pb.y0)
+                return -1;
+
+            if (pa.y0 > pb.y0)
+                return 1;
+
+            return 0;
         }
 
         private ActiveEdge CreateActiveEdge(Edge edge, int offX, float startPoint)
@@ -1195,7 +1215,7 @@ namespace LunarLabs.Fonts
             }
         }
 
-        private void RasterizeSortedEdges(GlyphBitmap bitmap, EdgeList e, int vSubSamples, int offX, int off_y)
+        private void RasterizeSortedEdges(GlyphBitmap bitmap, List<Edge> e, int vSubSamples, int offX, int off_y)
         {
             int eIndex = 0;
             int n = e.Count - 1;
@@ -1206,7 +1226,9 @@ namespace LunarLabs.Fonts
 
             int y = off_y * vSubSamples;
 
-            e.Fix(n, (off_y + bitmap.Height) * vSubSamples + 1);
+            var tempEdge = e[n];
+            tempEdge.y0 = (off_y + bitmap.Height) * vSubSamples + 1;
+            e[n] = tempEdge;
 
             var scanline = new byte[bitmap.Width];
 
@@ -1277,11 +1299,11 @@ namespace LunarLabs.Fonts
                     } while (changed);
 
                     // insert all edges that start before the center of this scanline -- omit ones that also end on this scanline
-                    while (e.Get(eIndex).y0 <= scanY)
+                    while (e[eIndex].y0 <= scanY)
                     {
-                        if (e.Get(eIndex).y1 > scanY)
+                        if (e[eIndex].y1 > scanY)
                         {
-                            var z = CreateActiveEdge(e.Get(eIndex), offX, scanY);
+                            var z = CreateActiveEdge(e[eIndex], offX, scanY);
                             // find insertion point
                             if (active == null)
                                 active = z;
