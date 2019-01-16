@@ -44,7 +44,7 @@ namespace FontDemo
             int height = 64;
             var scale = font.ScaleInPixels(height);
 
-            var phrase = "Hellog yorld";
+            var phrase = "Hellog AA yorld";
             var glyphs = new Dictionary<char, FontGlyph>();
             var bitmaps = new Dictionary<char, Bitmap>();
             foreach (var ch in phrase)
@@ -77,10 +77,14 @@ namespace FontDemo
                 var ch = phrase[i];
                 var glyph = glyphs[ch];
 
+                var next = i < phrase.Length - 1 ? phrase[i + 1] : '\0';
+
+                var kerning = font.GetKerning(ch, next, scale);
+
                 int y0 = height - baseLine + glyph.yOfs;
                 int y1 = y0 + glyph.Image.Height;
 
-                int x0 = x + glyph.xOfs;
+                int x0 = x + glyph.xOfs - kerning;
                 int x1 = x0 + glyph.Image.Width;
                 x += glyph.xAdvance;
 
