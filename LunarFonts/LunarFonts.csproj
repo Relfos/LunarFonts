@@ -11,6 +11,7 @@
     <PackageLicenseUrl>https://github.com/Relfos/LunarFonts/blob/master/LICENSE</PackageLicenseUrl>
     <RepositoryUrl>https://github.com/Relfos/LunarFonts</RepositoryUrl>
     <PackageTags>font,text,rendering,ttf,rasterizer</PackageTags>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
 </Project>
