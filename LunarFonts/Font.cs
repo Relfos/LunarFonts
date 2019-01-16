@@ -4,13 +4,13 @@ using System.Text;
 
 namespace LunarLabs.Fonts
 {
-    public class PixelTarget
+    public class GlyphBitmap
     {
         public readonly int Width;
         public readonly int Height;
         public readonly byte[] Pixels;
 
-        public PixelTarget(int width, int height)
+        public GlyphBitmap(int width, int height)
         {
             Width = width;
             Height = height;
@@ -18,9 +18,9 @@ namespace LunarLabs.Fonts
         }
     }
 
-    public class GlyphTarget
+    public class FontGlyph
     {
-        public PixelTarget Image { get; internal set; }
+        public GlyphBitmap Image { get; internal set; }
         public int xOfs { get; internal set; }
         public int yOfs { get; internal set; }
         public int xAdvance { get; internal set; }
@@ -291,7 +291,7 @@ namespace LunarLabs.Fonts
                 return GetGlyphKernAdvance(FindGlyphIndex(ch1), FindGlyphIndex(ch2));
         }
 
-        private void GetCodepointHMetrics(int codepoint, out int advanceWidth, out int leftSideBearing)
+        public void GetCodepointHMetrics(int codepoint, out int advanceWidth, out int leftSideBearing)
         {
             GetGlyphHMetrics(FindGlyphIndex(codepoint), out advanceWidth, out leftSideBearing);
         }
@@ -301,7 +301,7 @@ namespace LunarLabs.Fonts
         // lineGap is the spacing between one row's descent and the next row's ascent...
         // you should advance the vertical position by "*ascent - *descent + *lineGap"
         // these are expressed in unscaled coordinates, so you must multiply by the scale factor for a given size
-        private void GetFontVMetrics(out int ascent, out int descent, out int lineGap)
+        public void GetFontVMetrics(out int ascent, out int descent, out int lineGap)
         {
             ascent = ReadS16(_hhea + 4);
             descent = ReadS16(_hhea + 6);
@@ -321,12 +321,12 @@ namespace LunarLabs.Fonts
             return pixelHeight / fHeight;
         }
 
-        private PixelTarget GetCodepointBitmap(float scaleX, float scaleY, int codepoint, out int xoff, out int yoff)
+        private GlyphBitmap GetCodepointBitmap(float scaleX, float scaleY, int codepoint, out int xoff, out int yoff)
         {
             return GetGlyphBitmap(scaleX, scaleY, 0, 0, FindGlyphIndex(codepoint), out xoff, out yoff);
         }
 
-        private PixelTarget GetGlyphBitmap(float scale_x, float scale_y, float shift_x, float shift_y, int glyph, out int xoff, out int yoff)
+        private GlyphBitmap GetGlyphBitmap(float scale_x, float scale_y, float shift_x, float shift_y, int glyph, out int xoff, out int yoff)
         {
             var vertices = GetGlyphShape(glyph);
 
@@ -356,7 +356,7 @@ namespace LunarLabs.Fonts
             }
 
             // now we get the size
-            var result = new PixelTarget(w, h);
+            var result = new GlyphBitmap(w, h);
             xoff = ix0;
             yoff = iy0;
             Rasterize(result, 0.35f, vertices, scale_x, scale_y, shift_x, shift_y, ix0, iy0, true);
@@ -1027,7 +1027,7 @@ namespace LunarLabs.Fonts
             }
         }
 
-        private void Rasterize(PixelTarget bitmap, float flatnessInPixels, List<Vertex> vertices, float scaleX, float scaleY, float shiftX, float shiftY, int XOff, int YOff, bool Invert)
+        private void Rasterize(GlyphBitmap bitmap, float flatnessInPixels, List<Vertex> vertices, float scaleX, float scaleY, float shiftX, float shiftY, int XOff, int YOff, bool Invert)
         {
             float scale = scaleX < scaleY ? scaleX : scaleY;
 
@@ -1040,7 +1040,7 @@ namespace LunarLabs.Fonts
             }
         }
 
-        private void Rasterize(PixelTarget bitmap, List<Point> points, int[] windings, float scaleX, float scaleY, float shiftX, float shiftY, int XOff, int YOff, bool invert)
+        private void Rasterize(GlyphBitmap bitmap, List<Point> points, int[] windings, float scaleX, float scaleY, float shiftX, float shiftY, int XOff, int YOff, bool invert)
         {
             int ptOfs = 0;
 
@@ -1195,7 +1195,7 @@ namespace LunarLabs.Fonts
             }
         }
 
-        private void RasterizeSortedEdges(PixelTarget bitmap, EdgeList e, int vSubSamples, int offX, int off_y)
+        private void RasterizeSortedEdges(GlyphBitmap bitmap, EdgeList e, int vSubSamples, int offX, int off_y)
         {
             int eIndex = 0;
             int n = e.Count - 1;
@@ -1340,29 +1340,27 @@ namespace LunarLabs.Fonts
             return (P > 0);
         }
 
-        public GlyphTarget RenderGlyph(char ID, float scale)
+        public FontGlyph RenderGlyph(char ID, float scale)
         {
             if (!HasGlyph(ID))
             {
                 return null;
             }
 
-            var glyphTarget = new GlyphTarget();
-
-            /*if (ID == 32)
-            {
-                var OpID = CharValue('_');
-                Img:= GetCodepointBitmap(_Scale, _Scale, OpID, xofs, yofs);
-                ReleaseObject(Img);
-                Img:= TERRAImage.Create(4, 4);
-                stbtt_GetCodepointHMetrics(OpID, XAdv, lsb);
-                Result:= Font.AddGlyphFromImage(ID, Img, XOfs, YOfs, Trunc(XAdv * _Scale));
-                ReleaseObject(Img);
-                Exit;
-            }*/
+            var glyphTarget = new FontGlyph();
 
             int xOfs, yOfs;
-            glyphTarget.Image = GetCodepointBitmap(scale, scale, ID, out xOfs, out yOfs);
+
+            if (ID == 32)
+            {
+                ID = '_';
+                GetCodepointBitmap(scale, scale, ID, out xOfs, out yOfs);
+                glyphTarget.Image = new GlyphBitmap(4, 4);
+            }
+            else
+            {
+                glyphTarget.Image = GetCodepointBitmap(scale, scale, ID, out xOfs, out yOfs);
+            }
 
             glyphTarget.xOfs = xOfs;
             glyphTarget.yOfs = yOfs;
