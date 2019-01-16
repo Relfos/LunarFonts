@@ -63,37 +63,63 @@ namespace FontDemo
             font.GetFontVMetrics(out ascent, out descent, out lineGap);
             int baseLine = height - (int)(ascent * scale);
 
-            int outWidth = 0;
-            int realMaxHeight = 0;
-            foreach (var ch in phrase)
+
+            int minX = int.MaxValue;
+            int maxX = int.MinValue;
+            int minY = int.MaxValue;
+            int maxY = int.MinValue;
+
+            var positions = new Point[phrase.Length];
+            
+            int x = 0;
+            for (int i=0; i<phrase.Length; i++)
             {
+                var ch = phrase[i];
                 var glyph = glyphs[ch];
-                outWidth += glyph.xAdvance;
 
                 int y0 = height - baseLine + glyph.yOfs;
                 int y1 = y0 + glyph.Image.Height;
-                realMaxHeight = Math.Max(realMaxHeight, y1);
+
+                int x0 = x + glyph.xOfs;
+                int x1 = x0 + glyph.Image.Width;
+                x += glyph.xAdvance;
+
+                positions[i] = new Point(x0, y0);
+
+                x1 = Math.Max(x, x1);
+
+                minX = Math.Min(minX, x0);
+                maxX = Math.Max(maxX, x1);
+
+                minY = Math.Min(minY, y0);
+                maxY = Math.Max(maxY, y1);
             }
 
-            baseLine += (height - realMaxHeight);
-            int outHeight = realMaxHeight;
+            int realWidth = (maxX - minX) + 1;
+            int realHeight = (maxY - minY) + 1;
 
-            var outBmp = new Bitmap(outWidth, outHeight);
+            for (int i=0; i<phrase.Length; i++)
+            {
+                positions[i].X -= minX;
+                positions[i].Y -= minY;
+            }
+
+            var outBmp = new Bitmap(realWidth, realHeight);
             using (var g = Graphics.FromImage(outBmp))
             {
                 // draw the baseline height in blue color
-                var ly = -1 + outHeight - baseLine;
-                g.DrawLine(new Pen(Color.Blue), 0, ly, outWidth - 1, ly);
+                var ly = height - (baseLine + minY);
+                g.DrawLine(new Pen(Color.Blue), 0, ly, realWidth - 1, ly);
 
                 // now draw each character
-                int x = 0;
-                foreach (var ch in phrase)
+                x = 0;
+                for (int i=0; i<phrase.Length; i++)
                 {
+                    var ch = phrase[i];
                     var glyph = glyphs[ch];
                     var bmp = bitmaps[ch];
-                    g.DrawImage(bmp, x, height - baseLine + glyph.yOfs);
-
-                    x += glyph.xAdvance;
+                    var pos = positions[i];
+                    g.DrawImage(bmp, pos.X, pos.Y);
                 }
             }
 
