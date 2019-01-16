@@ -4,7 +4,6 @@ using System.Text;
 
 namespace LunarLabs.Fonts
 {
-
     public class PixelTarget
     {
         public readonly int Width;
@@ -69,7 +68,6 @@ namespace LunarLabs.Fonts
     public class Font
     {
         private int _glyphCount;
-        private float _scale;
         private byte[] _data;              // pointer to .ttf file
 
         private uint _loca;
@@ -298,6 +296,11 @@ namespace LunarLabs.Fonts
             GetGlyphHMetrics(FindGlyphIndex(codepoint), out advanceWidth, out leftSideBearing);
         }
 
+        // ascent is the coordinate above the baseline the font extends; 
+        // descent is the coordinate below the baseline the font extends (i.e. it is typically negative)
+        // lineGap is the spacing between one row's descent and the next row's ascent...
+        // you should advance the vertical position by "*ascent - *descent + *lineGap"
+        // these are expressed in unscaled coordinates, so you must multiply by the scale factor for a given size
         private void GetFontVMetrics(out int ascent, out int descent, out int lineGap)
         {
             ascent = ReadS16(_hhea + 4);
@@ -305,10 +308,17 @@ namespace LunarLabs.Fonts
             lineGap = ReadS16(_hhea + 8);
         }
 
-        private float ScaleForPixelHeight(float height)
+        public float ScaleInEm(float ems)
         {
-            float fHeight = ReadS16(_hhea + 4) - ReadS16(_hhea + 6);
-            return height / fHeight;
+            return ScaleInPixels(ems * 16.0f);
+        }
+
+        public float ScaleInPixels(float pixelHeight)
+        {
+            var ascent = ReadS16(_hhea + 4);
+            var descent = ReadS16(_hhea + 6);
+            float fHeight = ascent - descent;
+            return pixelHeight / fHeight;
         }
 
         private PixelTarget GetCodepointBitmap(float scaleX, float scaleY, int codepoint, out int xoff, out int yoff)
@@ -924,7 +934,7 @@ namespace LunarLabs.Fonts
         }
 
         // returns number of contours
-        private void FlattenCurves(List<Vertex> vertices, float objSpaceFlatness, out List<int> contours, out List<Point> windings)
+        private void FlattenCurves(List<Vertex> vertices, float objSpaceFlatness, out int[] contours, out List<Point> windings)
         {
             float objspace_flatness_squared = objSpaceFlatness * objSpaceFlatness;
             int n = 0;
@@ -937,16 +947,16 @@ namespace LunarLabs.Fonts
                 }
 
             windings = null;
-            contours = new List<int>();
+            contours = null;
             if (n == 0)
             {
                 return;
             }
 
-            //SetLength(Contours.List, N);
-
             int numPoints = 0;
             int start = 0;
+
+            contours = new int[n];
 
             // make two passes through the points so we don't need to realloc
             for (int pass = 0; pass <= 1; pass++)
@@ -955,6 +965,7 @@ namespace LunarLabs.Fonts
                 float y = 0;
                 if (pass == 1)
                 {
+                    contours = new int[numPoints * 2 ];
                     windings = new List<Point>(numPoints);
                 }
 
@@ -970,7 +981,7 @@ namespace LunarLabs.Fonts
                                 // start the next contour
                                 if (n >= 0)
                                 {
-                                    contours.Add(numPoints - start);
+                                    contours[n] = numPoints - start;
                                 }
                                 n++;
                                 start = numPoints;
@@ -1012,7 +1023,7 @@ namespace LunarLabs.Fonts
                     }
                 }
 
-                contours.Add(numPoints - start);
+                contours[n] = numPoints - start;
             }
         }
 
@@ -1020,17 +1031,16 @@ namespace LunarLabs.Fonts
         {
             float scale = scaleX < scaleY ? scaleX : scaleY;
 
-            List<int> windingLengths;
+            int[] windingLengths;
             List<Point> windings;
             FlattenCurves(vertices, flatnessInPixels / scale, out windingLengths, out windings);
             if (windings.Count > 0)
             {
-
                 Rasterize(bitmap, windings, windingLengths, scaleX, scaleY, shiftX, shiftY, XOff, YOff, Invert);
             }
         }
 
-        private void Rasterize(PixelTarget bitmap, List<Point> points, List<int> windings, float scaleX, float scaleY, float shiftX, float shiftY, int XOff, int YOff, bool invert)
+        private void Rasterize(PixelTarget bitmap, List<Point> points, int[] windings, float scaleX, float scaleY, float shiftX, float shiftY, int XOff, int YOff, bool invert)
         {
             int ptOfs = 0;
 
@@ -1042,7 +1052,7 @@ namespace LunarLabs.Fonts
             var edgeList = new EdgeList();
             int m = 0;
 
-            for (int i = 0; i < windings.Count; i++)
+            for (int i = 0; i < windings.Length; i++)
             {
                 ptOfs = m;
 
@@ -1085,7 +1095,6 @@ namespace LunarLabs.Fonts
             }
 
             points.Clear();
-            windings.Clear();
 
             // now sort the edges by their highest point (should snap to integer, and then by x)
             edgeList.Sort();
@@ -1157,24 +1166,24 @@ namespace LunarLabs.Fonts
                             if (i == j)
                             {
                                 // x0,x1 are the same pixel, so compute combined coverage
-                                scanline[i] = (byte)(scanline[i] + (((x1 - x0) * max_weight) >> FIXSHIFT));
+                                scanline[i] = (byte)(scanline[i] + (byte)(((x1 - x0) * max_weight) >> FIXSHIFT));
                             }
                             else
                             {
                                 if (i >= 0)// add antialiasing for x0
-                                    scanline[i] = (byte)(scanline[i] + ((FIX - (x0 & FIXMASK)) * max_weight) >> FIXSHIFT);
+                                    scanline[i] = (byte)(scanline[i] + (byte)(((FIX - (x0 & FIXMASK)) * max_weight) >> FIXSHIFT));
                                 else
                                     i = -1; // clip
 
                                 if (j < len) // add antialiasing for x1
-                                    scanline[j] = (byte)(scanline[j] + ((x1 & FIXMASK) * max_weight) >> FIXSHIFT);
+                                    scanline[j] = (byte)(scanline[j] + (byte)(((x1 & FIXMASK) * max_weight) >> FIXSHIFT));
                                 else
                                     j = len; // clip
 
                                 i++;
                                 while (i < j) // fill pixels between x0 and x1
                                 {
-                                    scanline[i] = (byte)(scanline[i] + max_weight);
+                                    scanline[i] = (byte)(scanline[i] + (byte)max_weight);
                                     i++;
                                 }
                             }
@@ -1205,7 +1214,7 @@ namespace LunarLabs.Fonts
 
             while (j < bitmap.Height)
             {
-                for (int iii = 0; iii <= bitmap.Width; iii++)
+                for (int iii = 0; iii < bitmap.Width; iii++)
                 {
                     scanline[iii] = 0;
                 }
@@ -1320,9 +1329,9 @@ namespace LunarLabs.Fonts
             }
         }
 
-        private int GetKerning(char current, char next)
+        public int GetKerning(char current, char next, float scale)
         {
-            return (int)Math.Floor(GetCodepointKernAdvance(current, next) * _scale);
+            return (int)Math.Floor(GetCodepointKernAdvance(current, next) * scale);
         }
 
         public bool HasGlyph(char ID)
@@ -1331,14 +1340,12 @@ namespace LunarLabs.Fonts
             return (P > 0);
         }
 
-        public GlyphTarget RenderGlyph(char ID, int size)
+        public GlyphTarget RenderGlyph(char ID, float scale)
         {
             if (!HasGlyph(ID))
             {
                 return null;
             }
-
-            _scale = this.ScaleForPixelHeight(size);
 
             var glyphTarget = new GlyphTarget();
 
@@ -1355,14 +1362,14 @@ namespace LunarLabs.Fonts
             }*/
 
             int xOfs, yOfs;
-            var img = GetCodepointBitmap(_scale, _scale, ID, out xOfs, out yOfs);
+            glyphTarget.Image = GetCodepointBitmap(scale, scale, ID, out xOfs, out yOfs);
 
             glyphTarget.xOfs = xOfs;
             glyphTarget.yOfs = yOfs;
 
             int xAdv, lsb;
             GetCodepointHMetrics(ID, out xAdv, out lsb);
-            glyphTarget.xAdvance = (int)Math.Floor(xAdv * _scale);
+            glyphTarget.xAdvance = (int)Math.Floor(xAdv * scale);
 
             return glyphTarget;
         }
