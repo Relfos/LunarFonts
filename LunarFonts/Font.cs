@@ -379,7 +379,7 @@ namespace LunarLabs.Fonts
             switch (format)
             {
                 // apple byte encoding
-                case 0: 
+                case 0:
                     {
                         var bytes = ReadU16(_indexMap + 2);
                         if (unicodeCodepoint < bytes - 6)
@@ -413,7 +413,7 @@ namespace LunarLabs.Fonts
                     }
 
                 // standard mapping for windows fonts: binary search collection of ranges
-                case 4: 
+                case 4:
                     {
                         var segcount = ReadU16(_indexMap + 6) >> 1;
                         var searchRange = ReadU16(_indexMap + 8) >> 1;
@@ -974,7 +974,7 @@ namespace LunarLabs.Fonts
                 float y = 0;
                 if (pass == 1)
                 {
-                    contours = new int[numPoints * 2 ];
+                    contours = new int[numPoints * 2];
                     windings = new List<Point>(numPoints);
                 }
 
@@ -1106,7 +1106,7 @@ namespace LunarLabs.Fonts
             points.Clear();
 
             // now sort the edges by their highest point (should snap to integer, and then by x)
-            edgeList.Sort((x,y) => EdgeCompare(x,y));
+            edgeList.Sort((x, y) => EdgeCompare(x, y));
 
             var temp = new Edge();
             temp.y0 = 10000000;
@@ -1151,6 +1151,150 @@ namespace LunarLabs.Fonts
                 z.valid = -1;
 
             return z;
+        }
+
+        private void RasterizeSortedEdges(GlyphBitmap bitmap, List<Edge> e, int vSubSamples, int offX, int off_y)
+        {
+            int eIndex = 0;
+
+            ActiveEdge active = null;
+            int max_weight = 255 / vSubSamples;  // weight per vertical scanline
+
+            int y = off_y * vSubSamples;
+
+            int n = e.Count - 1;
+            var tempEdge = e[n];
+            tempEdge.y0 = (off_y + bitmap.Height) * vSubSamples + 1;
+            e[n] = tempEdge;
+
+            var scanline = new byte[bitmap.Width];
+
+            float scanY = 0;
+
+            int j = 0;
+            while (j < bitmap.Height)
+            {
+                for (int iii = 0; iii < bitmap.Width; iii++)
+                {
+                    scanline[iii] = 0;
+                }
+
+                for (int s = 0; s < vSubSamples; s++)
+                {
+                    // find center of pixel for this scanline
+                    scanY = y + 0.5f;
+
+                    // update all active edges;
+                    // remove all active edges that terminate before the center of this scanline
+                    var curr = active;
+                    ActiveEdge prev = null;
+                    while (curr != null)
+                    {
+                        if (curr.ey <= scanY)
+                        {
+                            // delete from list
+                            if (prev != null)
+                                prev.next = curr.next;
+                            else
+                                active = curr.next;
+
+                            curr = curr.next;
+                        }
+
+                        else
+                        {
+                            curr.x += curr.dx; // advance to position for current scanline
+
+                            prev = curr;
+                            curr = curr.next; // advance through list
+                        }
+                    }
+
+                    // resort the list if needed
+                    bool changed;
+                    do
+                    {
+                        changed = false;
+
+                        curr = active;
+                        prev = null;
+                        while (curr != null && curr.next != null)
+                        {
+                            var prox = curr.next;
+                            if (curr.x > prox.x)
+                            {
+                                if (prev == null)
+                                {
+                                    active = prox;
+                                }
+                                else
+                                {
+                                    prev.next = prox;
+                                }
+
+                                curr.next = prox.next;
+                                prox.next = curr;
+                                Console.WriteLine("Sorted " + curr.ey + " with " + prox.ey);
+                                changed = true;
+                            }
+
+                            prev = curr;
+                            curr = curr.next; // advance through list
+                        }
+
+                    } while (changed);
+
+                    // insert all edges that start before the center of this scanline -- omit ones that also end on this scanline
+                    while (e[eIndex].y0 <= scanY)
+                    {
+                        if (e[eIndex].y1 > scanY)
+                        {
+                            var z = CreateActiveEdge(e[eIndex], offX, scanY);
+                            // find insertion point
+                            if (active == null)
+                                active = z;
+                            else
+                             if (z.x < active.x) // insert at front
+                            {
+                                z.next = active;
+                                active = z;
+                            }
+                            else
+                            {
+                                // find thing to insert AFTER
+                                var p = active;
+                                while (p.next != null && p.next.x < z.x)
+                                {
+                                    p = p.next;
+                                }
+
+                                // at this point, p->next->x is NOT < z->x
+                                z.next = p.next;
+                                p.next = z;
+                            }
+                        }
+
+                        eIndex++;
+                    }
+
+                    // now process all active edges in XOR fashion
+                    if (active != null)
+                    {
+                        FillActiveEdges(scanline, bitmap.Width, active, max_weight);
+                    }
+
+                    y++;
+                }
+
+                for (int iii = 0; iii < bitmap.Width; iii++)
+                    if (scanline[iii] > 0) // OPTIMIZATION?
+                    {
+                        int ofs = iii + j * bitmap.Width;
+                        bitmap.Pixels[ofs] = scanline[iii];
+                    }
+
+                j++;
+            }
         }
 
         // note: this routine clips fills that extend off the edges... 
@@ -1210,144 +1354,7 @@ namespace LunarLabs.Fonts
                         }
                     }
                 }
-
                 e = e.next;
-            }
-        }
-
-        private void RasterizeSortedEdges(GlyphBitmap bitmap, List<Edge> e, int vSubSamples, int offX, int off_y)
-        {
-            int eIndex = 0;
-            int n = e.Count - 1;
-
-            ActiveEdge active = null;
-            int j = 0;
-            int max_weight = 255 / vSubSamples;  // weight per vertical scanline
-
-            int y = off_y * vSubSamples;
-
-            var tempEdge = e[n];
-            tempEdge.y0 = (off_y + bitmap.Height) * vSubSamples + 1;
-            e[n] = tempEdge;
-
-            var scanline = new byte[bitmap.Width];
-
-            float scanY = 0;
-
-            while (j < bitmap.Height)
-            {
-                for (int iii = 0; iii < bitmap.Width; iii++)
-                {
-                    scanline[iii] = 0;
-                }
-
-                for (int s = 0; s < vSubSamples; s++)
-                {
-                    // find center of pixel for this scanline
-                    scanY = y + 0.5f;
-
-                    // update all active edges;
-                    // remove all active edges that terminate before the center of this scanline
-                    var temp = active;
-                    ActiveEdge prev = null;
-                    while (temp != null)
-                    {
-                        if (temp.ey <= scanY)
-                        {
-                            // delete from list
-                            if (prev != null)
-                                prev.next = temp.next;
-                            else
-                                active = temp.next;
-
-                            temp = temp.next;
-                        }
-
-                        else
-                        {
-                            temp.x += temp.dx; // advance to position for current scanline
-
-                            prev = temp;
-                            temp = temp.next; // advance through list
-                        }
-                    }
-
-                    // resort the list if needed
-                    bool changed;
-                    do
-                    {
-                        changed = false;
-
-                        temp = active;
-                        while (temp != null && temp.next != null)
-                        {
-                            if (temp.x > temp.next.x)
-                            {
-                                var t = temp;
-                                var q = t.next;
-
-                                t.next = q.next;
-                                q.next = t;
-                                temp = q;
-
-                                changed = true;
-                            }
-
-                            temp = temp.next;
-                        }
-
-                    } while (changed);
-
-                    // insert all edges that start before the center of this scanline -- omit ones that also end on this scanline
-                    while (e[eIndex].y0 <= scanY)
-                    {
-                        if (e[eIndex].y1 > scanY)
-                        {
-                            var z = CreateActiveEdge(e[eIndex], offX, scanY);
-                            // find insertion point
-                            if (active == null)
-                                active = z;
-                            else
-                             if (z.x < active.x) // insert at front
-                            {
-                                z.next = active;
-                                active = z;
-                            }
-                            else
-                            {
-                                // find thing to insert AFTER
-                                var p = active;
-                                while (p.next != null && p.next.x < z.x)
-                                {
-                                    p = p.next;
-                                }
-
-                                // at this point, p->next->x is NOT < z->x
-                                z.next = p.next;
-                                p.next = z;
-                            }
-                        }
-
-                        eIndex++;
-                    }
-
-                    // now process all active edges in XOR fashion
-                    if (active != null)
-                    {
-                        FillActiveEdges(scanline, bitmap.Width, active, max_weight);
-                    }
-
-                    y++;
-                }
-
-                for (int iii = 0; iii < bitmap.Width; iii++)
-                    if (scanline[iii] > 0) // OPTIMIZATION?
-                    {
-                        int ofs = iii + j * bitmap.Width;
-                        bitmap.Pixels[ofs] = scanline[iii];
-                    }
-
-                j++;
             }
         }
 
