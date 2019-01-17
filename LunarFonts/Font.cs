@@ -16,6 +16,19 @@ namespace LunarLabs.Fonts
             Height = height;
             Pixels = new byte[width * height];
         }
+
+        public void Draw(GlyphBitmap other, int x, int y)
+        {
+            for (int j = 0; j < other.Height; j++)
+            {
+                for (int i = 0; i < other.Width; i++)
+                {
+                    var srcOfs = i + j * other.Width;
+                    var destOfs = (x + i) + (y + j) * this.Width;
+                    Pixels[destOfs] = other.Pixels[srcOfs];
+                }
+            }
+        }
     }
 
     public class FontGlyph

@@ -41,7 +41,8 @@ namespace FontDemo
 
             var font = new LunarLabs.Fonts.Font(bytes);
 
-            int height = 64;
+            int SDF_scale = 8;
+            int height = 64 * SDF_scale;
             var scale = font.ScaleInPixels(height);
 
             var phrase = "Hellog AA yorld";
@@ -108,12 +109,11 @@ namespace FontDemo
                 positions[i].Y -= minY;
             }
 
-            var outBmp = new Bitmap(realWidth, realHeight);
-            using (var g = Graphics.FromImage(outBmp))
+            var tempBmp = new GlyphBitmap(realWidth, realHeight);
             {
                 // draw the baseline height in blue color
                 var ly = height - (baseLine + minY);
-                g.DrawLine(new Pen(Color.Blue), 0, ly, realWidth - 1, ly);
+                //g.DrawLine(new Pen(Color.Blue), 0, ly, realWidth - 1, ly);
 
                 // now draw each character
                 x = 0;
@@ -123,10 +123,16 @@ namespace FontDemo
                     var glyph = glyphs[ch];
                     var bmp = bitmaps[ch];
                     var pos = positions[i];
-                    g.DrawImage(bmp, pos.X, pos.Y);
+                    tempBmp.Draw(glyph.Image, pos.X, pos.Y);
                 }
             }
 
+            if (SDF_scale > 1)
+            {
+                tempBmp = DistanceFieldUtils.CreateDistanceField(tempBmp, SDF_scale, 32);
+            }
+
+            var outBmp = ConvertToBitmap(tempBmp);
             var outputFileName = "output.png";
             Console.WriteLine($"Outputting {outputFileName}...");
             outBmp.Save(outputFileName);
