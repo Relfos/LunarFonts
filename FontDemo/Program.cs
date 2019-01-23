@@ -41,11 +41,15 @@ namespace FontDemo
 
             var font = new LunarLabs.Fonts.Font(bytes);
 
-            int SDF_scale = 8;
+            // make this a number larger than 1 to enable SDF output
+            int SDF_scale = 1;
+
+            // here is the desired height in pixels of the output
+            // the real value might not be exactly this depending on which characters are part of the input text
             int height = 64 * SDF_scale;
             var scale = font.ScaleInPixels(height);
 
-            var phrase = "Hellog AA yorld";
+            var phrase = "Hello world";
             var glyphs = new Dictionary<char, FontGlyph>();
             var bitmaps = new Dictionary<char, Bitmap>();
             foreach (var ch in phrase)

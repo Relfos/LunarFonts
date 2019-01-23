@@ -305,7 +305,7 @@ namespace LunarLabs.Fonts
             return 0;
         }
 
-        private int GetCodepointKernAdvance(int ch1, int ch2)
+        private int GetCodepointKernAdvance(char ch1, char ch2)
         {
             if (_kern <= 0)
                 return 0;
@@ -313,7 +313,7 @@ namespace LunarLabs.Fonts
                 return GetGlyphKernAdvance(FindGlyphIndex(ch1), FindGlyphIndex(ch2));
         }
 
-        public void GetCodepointHMetrics(int codepoint, out int advanceWidth, out int leftSideBearing)
+        public void GetCodepointHMetrics(char codepoint, out int advanceWidth, out int leftSideBearing)
         {
             GetGlyphHMetrics(FindGlyphIndex(codepoint), out advanceWidth, out leftSideBearing);
         }
@@ -343,7 +343,7 @@ namespace LunarLabs.Fonts
             return pixelHeight / fHeight;
         }
 
-        private GlyphBitmap GetCodepointBitmap(float scaleX, float scaleY, int codepoint, out int xoff, out int yoff)
+        private GlyphBitmap GetCodepointBitmap(float scaleX, float scaleY, char codepoint, out int xoff, out int yoff)
         {
             return GetGlyphBitmap(scaleX, scaleY, 0, 0, FindGlyphIndex(codepoint), out xoff, out yoff);
         }
@@ -374,7 +374,7 @@ namespace LunarLabs.Fonts
 
             if (w <= 0 || h <= 0)
             {
-                throw new Exception("invalid glyphh size");
+                throw new Exception("invalid glyph size");
             }
 
             // now we get the size
@@ -385,7 +385,7 @@ namespace LunarLabs.Fonts
             return result;
         }
 
-        private ushort FindGlyphIndex(int unicodeCodepoint)
+        private ushort FindGlyphIndex(char unicodeCodepoint)
         {
             var format = ReadU16(_indexMap);
 
@@ -582,7 +582,7 @@ namespace LunarLabs.Fonts
             return true;
         }
 
-        private bool GetCodepointBox(int codepoint, out int x0, out int y0, out int x1, out int y1)
+        private bool GetCodepointBox(char codepoint, out int x0, out int y0, out int x1, out int y1)
         {
             return GetGlyphBox(FindGlyphIndex(codepoint), out x0, out y0, out x1, out y1);
         }
@@ -1393,7 +1393,7 @@ namespace LunarLabs.Fonts
 
             int xOfs, yOfs;
 
-            if (ID == 32)
+            if (ID == ' ')
             {
                 ID = '_';
                 GetCodepointBitmap(scale, scale, ID, out xOfs, out yOfs);
@@ -1401,6 +1401,21 @@ namespace LunarLabs.Fonts
             }
             else
             {
+                if (!HasGlyph(ID))
+                {
+                    if (char.IsLetter(ID))
+                    {
+                        if (char.IsUpper(ID))
+                        {
+                            ID = char.ToLowerInvariant(ID);
+                        }
+                        else
+                        {
+                            ID = char.ToUpperInvariant(ID);
+                        }
+                    }
+                }
+
                 glyphTarget.Image = GetCodepointBitmap(scale, scale, ID, out xOfs, out yOfs);
             }
 

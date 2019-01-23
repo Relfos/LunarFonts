@@ -12,6 +12,7 @@
     <RepositoryUrl>https://github.com/Relfos/LunarFonts</RepositoryUrl>
     <PackageTags>font,text,rendering,ttf,rasterizer</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Version>1.0.2</Version>
   </PropertyGroup>
 
 </Project>
