@@ -29,6 +29,17 @@ Note that the pixels array stores the pixels as single-channel greyscale data. W
 
 You can check the included sample for a more advanced program that shows how to output a full string and save the result as a image file.
 
+# Font Viewer
+
+Include is also the source code for a font viewer that uses this library.
+
+It allows browsing of any folder that contains .ttf files and quickly preview custom text using each font.
+
+<p align="center">
+  <img src="/viewer.png">
+</p>
+
+
 # Contact
 
 Let me know if you find bugs or if you have suggestions to improve the code.
