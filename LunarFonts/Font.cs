@@ -701,7 +701,7 @@ namespace LunarLabs.Fonts
                     {
                         if ((flags & 32) == 0)
                         {
-                            y += ReadS16((ushort)(pointOffset + pointIndex)); // PORT
+                            y += ReadS16((uint)(pointOffset + pointIndex)); // PORT
                             pointIndex += 2;
                         }
                     }
