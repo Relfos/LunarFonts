@@ -9,9 +9,11 @@ Special thanks to [Ben Baker](https://github.com/benbaker76) for his bug fixes.
 
 ## Installation
 
-    PM> Install-Package LunarLabs.Fonts
+Available as a Nuget package.
 
-Since this is a .NET standard package, to use with .NET framework projects please set the target to .NET Framework 4.5 or higher, otherwise Nuget will give you installation errors.
+```
+    PM> Install-Package LunarLabs.Fonts
+```
 
 # Sample code
 
