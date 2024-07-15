@@ -24,15 +24,22 @@ Here's a simple example of how to do it:
 	using LunarLabs.Fonts;
 	//...
 	var bytes = File.ReadAllBytes(fontFileName);
+
 	var font = new Font(bytes);
-	var scale = font.ScaleInPixels(64);
+
+	// convert font size to pixels
+	var scale = font.ScaleInPixels(64);	
+
 	var result = font.RenderGlyph('A', scale);
-	// result.Image now contains the pixels, width and height of the rasterized glyph	
+	// result.Image now contains the pixels, width and height of the rasterized glyph
+	// it also contains other fields with useful info like xAdvance which lets you know how many pixels to move forward if rendering multiple characters sequentially
 ```
 
 Note that the pixels array stores the pixels as single-channel greyscale data. What you do with this is up to you, you can blit it to the screen, to a bitmap or to an OpenGL texture etc.
 
 You can check the included sample for a more advanced program that shows how to output a full string and save the result as a image file.
+
+Kerning is also supported via method GetKerning(charA, charB, scale), which returns a int containing amount of pixels to subtract from xAdvance when calculating position of next character based on previous.
 
 # Font Viewer
 
