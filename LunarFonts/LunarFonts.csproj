@@ -8,11 +8,20 @@
     <Company>Lunar Labs</Company>
     <Product>LunarLabs.Fonts</Product>
     <Description>Font loader / rasterizer for TTF format in pure C#.</Description>
-    <PackageLicenseUrl>https://github.com/Relfos/LunarFonts/blob/master/LICENSE</PackageLicenseUrl>
     <RepositoryUrl>https://github.com/Relfos/LunarFonts</RepositoryUrl>
     <PackageTags>font,text,rendering,ttf,rasterizer</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>1.0.2</Version>
+    <Version>1.0.3</Version>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>False</PackageRequireLicenseAcceptance>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
 
 </Project>
