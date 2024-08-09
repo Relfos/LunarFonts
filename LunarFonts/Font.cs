@@ -1,5 +1,4 @@
-﻿using Svg;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -128,7 +127,7 @@ namespace LunarLabs.Fonts
         private int _indexToLocFormat;         // format needed to map from glyph index to glyph
         private uint _unitsPerEm;
 
-        private Dictionary<int, SvgDocument> _svgDocuments = new Dictionary<int, SvgDocument>();
+        private Dictionary<int, string> _svgDocuments = new Dictionary<int, string>();
 
         private const byte PLATFORM_ID_UNICODE = 0;
         private const byte PLATFORM_ID_MAC = 1;
@@ -149,14 +148,14 @@ namespace LunarLabs.Fonts
         private const byte VCURVE = 3;
         private const byte VCUBIC = 4;
 
-        public delegate Task<GlyphBitmap> SvgRenderCallback(Font font, SvgDocument svgDoc, int glyph);
+        public delegate Task<GlyphBitmap> SvgRenderCallback(Font font, string svgDoc, int glyph);
 
         public SvgRenderCallback SvgRender;
 
         public Font(byte[] bytes)
         {
             _data = bytes;
-            _svgDocuments = new Dictionary<int, SvgDocument>();
+            _svgDocuments = new Dictionary<int, string>();
 
             if (!IsFont())
             {
@@ -328,11 +327,10 @@ namespace LunarLabs.Fonts
                 uint svgDocLength = ReadU32(entryOffset + 8);
                 entryOffset += 12;
 
-                string svgContent = ReadSvgDocument(svgDocOffset, svgDocLength);
+                string svgDoc = ReadSvgDocument(svgDocOffset, svgDocLength);
 
-                if (!string.IsNullOrEmpty(svgContent))
+                if (!string.IsNullOrEmpty(svgDoc))
                 {
-                    var svgDoc = SvgDocument.FromSvg<SvgDocument>(svgContent);
                     for (int glyphID = (int)startGlyphID; glyphID <= endGlyphID; glyphID++)
                         _svgDocuments[glyphID] = svgDoc;
                 }
@@ -699,7 +697,7 @@ namespace LunarLabs.Fonts
             // Check if the glyph is an SVG
             if (_svg != 0)
             {
-                SvgDocument svgDoc = null;
+                string svgDoc = null;
 
                 if (SvgRender != null && _svgDocuments.TryGetValue(glyph, out svgDoc))
                 {

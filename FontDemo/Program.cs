@@ -187,16 +187,17 @@ namespace FontDemo
             System.Diagnostics.Process.Start(outputFileName);
         }
 
-        public static async Task<GlyphBitmap> SvgRender(LunarLabs.Fonts.Font font, SvgDocument svgDoc, int glyph)
+        public static async Task<GlyphBitmap> SvgRender(LunarLabs.Fonts.Font font, string svgDoc, int glyph)
         {
+            var svgDocment = SvgDocument.FromSvg<SvgDocument>(svgDoc);
             var svg = new Svg.Skia.SKSvg();
 
             // Set the ViewBox to encompass the full glyph bounding box
             int unitsPerEm = (int)font.UnitsPerEm;
-            svgDoc.ViewBox = new SvgViewBox(0, -unitsPerEm, unitsPerEm, unitsPerEm);
-            svgDoc.Width = svgDoc.Height = _fontSize;
+            svgDocment.ViewBox = new SvgViewBox(0, -unitsPerEm, unitsPerEm, unitsPerEm);
+            svgDocment.Width = svgDocment.Height = _fontSize;
 
-            var scale = font.ScaleInPixels(svgDoc.Height.Value);
+            var scale = font.ScaleInPixels(svgDocment.Height.Value);
 
             int advanceWidth, leftSideBearing;
             font.GetGlyphHMetrics(glyph, out advanceWidth, out leftSideBearing);
@@ -204,9 +205,9 @@ namespace FontDemo
 
             int ascent, descent, lineGap;
             font.GetFontVMetrics(out ascent, out descent, out lineGap);
-            int baseLine = (int)svgDoc.Height.Value - (int)(ascent * scale);
+            int baseLine = (int)svgDocment.Height.Value - (int)(ascent * scale);
 
-            using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(svgDoc.GetXML())))
+            using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(svgDocment.GetXML())))
             {
                 svg.Load(stream);
 
