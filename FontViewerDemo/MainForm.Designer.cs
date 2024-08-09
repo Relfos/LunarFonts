@@ -58,7 +58,7 @@
             this.textInput.Name = "textInput";
             this.textInput.Size = new System.Drawing.Size(200, 20);
             this.textInput.TabIndex = 1;
-            this.textInput.Text = "Hello world!";
+            this.textInput.Text = "Hello World!";
             this.textInput.TextChanged += new System.EventHandler(this.textBox1_TextChanged);
             // 
             // sdfCheckbox
@@ -122,7 +122,7 @@
             this.fontHeightSelector.Size = new System.Drawing.Size(79, 20);
             this.fontHeightSelector.TabIndex = 5;
             this.fontHeightSelector.Value = new decimal(new int[] {
-            32,
+            64,
             0,
             0,
             0});
