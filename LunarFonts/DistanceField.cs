@@ -1,115 +1,105 @@
 ﻿using System;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace LunarLabs.Fonts
 {
     public static class DistanceFieldUtils
     {
         /*
-        Computes a distance field transform of a high resolution binary source channel and returns the result as a low resolution channel.
+        Computes a distance field transform of a high resolution RGBA source channel and returns the result as a low resolution RGBA channel.
 
         scale_down : The amount the source channel will be scaled down.
         A value of 8 means the destination image will be 1/8th the size of the source
 
         spread: The spread in pixels before the distance field clamps to (zero/one). 
-        The valueis specified in units of the destination image. The spread in the source image will be spread*scale_down.
+        The value is specified in units of the destination image. The spread in the source image will be spread*scale_down.
         */
         public static GlyphBitmap CreateDistanceField(GlyphBitmap source, int scale, float spread)
         {
+            // Assuming GlyphBitmap now handles RGBA pixels, where each pixel has 4 bytes
             var result = new GlyphBitmap(source.Width / scale, source.Height / scale);
 
-            var values = source.Pixels.Select(x => (x / 255.0f) - 0.5f).ToArray();
+            // Process each channel separately (R, G, B, A)
+            float[] valuesR = new float[source.Width * source.Height];
+            float[] valuesG = new float[source.Width * source.Height];
+            float[] valuesB = new float[source.Width * source.Height];
+            float[] valuesA = new float[source.Width * source.Height];
 
-            for (int y = 0; y < result.Height; y++)
+            Parallel.For(0, source.Height, y =>
+            {
+                for (int x = 0; x < source.Width; x++)
+                {
+                    int i = (x + y * source.Width) * 4;
+                    valuesR[x + y * source.Width] = (source.Pixels[i] / 255.0f) - 0.5f;
+                    valuesG[x + y * source.Width] = (source.Pixels[i + 1] / 255.0f) - 0.5f;
+                    valuesB[x + y * source.Width] = (source.Pixels[i + 2] / 255.0f) - 0.5f;
+                    valuesA[x + y * source.Width] = (source.Pixels[i + 3] / 255.0f) - 0.5f;
+                }
+            });
+
+            Parallel.For(0, result.Height, y =>
             {
                 for (int x = 0; x < result.Width; x++)
                 {
-                    var sd = SignedDistance(values, source.Width, source.Height, x * scale, y * scale, spread);
-                    var n = (sd + spread) / (spread * 2.0f);
+                    var sdR = OptimizedSignedDistance(valuesR, source.Width, source.Height, x * scale, y * scale, spread);
+                    var sdG = OptimizedSignedDistance(valuesG, source.Width, source.Height, x * scale, y * scale, spread);
+                    var sdB = OptimizedSignedDistance(valuesB, source.Width, source.Height, x * scale, y * scale, spread);
+                    var sdA = OptimizedSignedDistance(valuesA, source.Width, source.Height, x * scale, y * scale, spread);
 
-                    var c = (byte)(n * 255);
-                    var offset = x + y * result.Width;
-                    result.Pixels[offset] = c;
+                    var nR = (sdR + spread) / (spread * 2.0f);
+                    var nG = (sdG + spread) / (spread * 2.0f);
+                    var nB = (sdB + spread) / (spread * 2.0f);
+                    var nA = (sdA + spread) / (spread * 2.0f);
+
+                    var cR = (byte)(nR * 255);
+                    var cG = (byte)(nG * 255);
+                    var cB = (byte)(nB * 255);
+                    var cA = (byte)(nA * 255);
+
+                    var offset = (x + y * result.Width) * 4;
+                    result.Pixels[offset] = cR;
+                    result.Pixels[offset + 1] = cG;
+                    result.Pixels[offset + 2] = cB;
+                    result.Pixels[offset + 3] = cA;
                 }
-            }
+            });
 
             return result;
         }
 
-        private static float SignedDistance(float[] source, int w, int h, int cx, int cy, float clamp)
+        private static float OptimizedSignedDistance(float[] source, int w, int h, int cx, int cy, float clamp)
         {
             var cd = source[cx + cy * w];
 
-            int min_x = cx - (int)(Math.Floor(clamp) - 1);
-            if (min_x < 0)
-            {
-                min_x = 0;
-            }
+            int min_x = Math.Max(0, cx - (int)clamp);
+            int max_x = Math.Min(w - 1, cx + (int)clamp);
+            int min_y = Math.Max(0, cy - (int)clamp);
+            int max_y = Math.Min(h - 1, cy + (int)clamp);
 
-            int max_x = cx + (int)(Math.Floor(clamp) + 1);
-            if (max_x >= w)
-            {
-                max_x = w - 1;
-            }
+            float distanceSquared = clamp * clamp;
 
-            float distance = clamp;
-            for (int dy = 0; dy < (int)(Math.Floor(clamp) + 1); dy++)
+            for (int y = min_y; y <= max_y; y++)
             {
-                if (dy > distance)
+                for (int x = min_x; x <= max_x; x++)
                 {
-                    continue;
-                }
-
-                if (cy - dy >= 0)
-                {
-                    int y1 = cy - dy;
-                    for (int x = min_x; x <= max_x; x++)
+                    float d = source[x + y * w];
+                    if (cd * d < 0)
                     {
-                        if (x - cx > distance)
+                        float dx = x - cx;
+                        float dy = y - cy;
+                        float distSq = dx * dx + dy * dy;
+                        if (distSq < distanceSquared)
                         {
-                            continue;
-                        }
-
-                        float d = source[x + y1 * w];
-                        if (cd * d < 0)
-                        {
-                            float d2 = (y1 - cy) * (y1 - cy) + (x - cx) * (x - cx);
-                            if (d2 < (distance * distance))
-                            { distance = (float)Math.Sqrt(d2); }
+                            distanceSquared = distSq;
                         }
                     }
                 }
-
-                if (dy != 0 && cy + dy < h)
-                {
-                    int y2 = cy + dy;
-
-                    for (int x = min_x; x < max_x; x++)
-                    {
-                        if (x - cx > distance)
-                        {
-                            continue;
-                        }
-
-                        float d = source[x + y2 * w];
-                        if (cd * d < 0)
-                        {
-                            float d2 = (y2 - cy) * (y2 - cy) + (x - cx) * (x - cx);
-                            if (d2 < distance * distance)
-                            {
-                                distance = (float)Math.Sqrt(d2);
-                            }
-                        }
-                    }
-                }
-
-
             }
 
-            if (cd > 0)
-                return distance;
-            else
-                return -distance;
+            float distance = (float)Math.Sqrt(distanceSquared);
+
+            return cd > 0 ? distance : -distance;
         }
     }
 }
