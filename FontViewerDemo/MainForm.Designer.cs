@@ -38,6 +38,8 @@
             this.button1 = new System.Windows.Forms.Button();
             this.outputBox = new System.Windows.Forms.PictureBox();
             this.borderCheckbox = new System.Windows.Forms.CheckBox();
+            this.butForeground = new System.Windows.Forms.Button();
+            this.butBackground = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.sdfScaleSelector)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.fontHeightSelector)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.outputBox)).BeginInit();
@@ -167,11 +169,33 @@
             this.borderCheckbox.UseVisualStyleBackColor = true;
             this.borderCheckbox.CheckedChanged += new System.EventHandler(this.borderCheckbox_CheckedChanged);
             // 
+            // butForeground
+            // 
+            this.butForeground.BackColor = System.Drawing.Color.Black;
+            this.butForeground.Location = new System.Drawing.Point(511, 22);
+            this.butForeground.Name = "butForeground";
+            this.butForeground.Size = new System.Drawing.Size(21, 23);
+            this.butForeground.TabIndex = 10;
+            this.butForeground.UseVisualStyleBackColor = false;
+            this.butForeground.Click += new System.EventHandler(this.butForeground_Click);
+            // 
+            // butBackground
+            // 
+            this.butBackground.BackColor = System.Drawing.Color.Transparent;
+            this.butBackground.Location = new System.Drawing.Point(538, 22);
+            this.butBackground.Name = "butBackground";
+            this.butBackground.Size = new System.Drawing.Size(21, 23);
+            this.butBackground.TabIndex = 11;
+            this.butBackground.UseVisualStyleBackColor = false;
+            this.butBackground.Click += new System.EventHandler(this.butBackground_Click);
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(655, 440);
+            this.Controls.Add(this.butBackground);
+            this.Controls.Add(this.butForeground);
             this.Controls.Add(this.borderCheckbox);
             this.Controls.Add(this.outputBox);
             this.Controls.Add(this.button1);
@@ -204,6 +228,8 @@
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.PictureBox outputBox;
         private System.Windows.Forms.CheckBox borderCheckbox;
+        private System.Windows.Forms.Button butForeground;
+        private System.Windows.Forms.Button butBackground;
     }
 }
 

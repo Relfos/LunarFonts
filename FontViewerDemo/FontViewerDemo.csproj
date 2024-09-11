@@ -42,8 +42,8 @@
     <Reference Include="HarfBuzzSharp, Version=1.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756, processorArchitecture=MSIL">
       <HintPath>..\packages\HarfBuzzSharp.7.3.0.2\lib\net462\HarfBuzzSharp.dll</HintPath>
     </Reference>
-    <Reference Include="ShimSkiaSharp, Version=2.0.0.0, Culture=neutral, PublicKeyToken=dafe96fe6c845a74, processorArchitecture=MSIL">
-      <HintPath>..\packages\ShimSkiaSharp.2.0.0\lib\net461\ShimSkiaSharp.dll</HintPath>
+    <Reference Include="ShimSkiaSharp, Version=2.0.0.1, Culture=neutral, PublicKeyToken=dafe96fe6c845a74, processorArchitecture=MSIL">
+      <HintPath>..\packages\ShimSkiaSharp.2.0.0.1\lib\net461\ShimSkiaSharp.dll</HintPath>
     </Reference>
     <Reference Include="SkiaSharp, Version=2.88.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756, processorArchitecture=MSIL">
       <HintPath>..\packages\SkiaSharp.2.88.8\lib\net462\SkiaSharp.dll</HintPath>
@@ -51,14 +51,14 @@
     <Reference Include="SkiaSharp.HarfBuzz, Version=2.88.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756, processorArchitecture=MSIL">
       <HintPath>..\packages\SkiaSharp.HarfBuzz.2.88.8\lib\net462\SkiaSharp.HarfBuzz.dll</HintPath>
     </Reference>
-    <Reference Include="Svg.Custom, Version=2.0.0.0, Culture=neutral, PublicKeyToken=dafe96fe6c845a74, processorArchitecture=MSIL">
-      <HintPath>..\packages\Svg.Custom.2.0.0\lib\netstandard2.0\Svg.Custom.dll</HintPath>
+    <Reference Include="Svg.Custom, Version=2.0.0.1, Culture=neutral, PublicKeyToken=dafe96fe6c845a74, processorArchitecture=MSIL">
+      <HintPath>..\packages\Svg.Custom.2.0.0.1\lib\netstandard2.0\Svg.Custom.dll</HintPath>
     </Reference>
-    <Reference Include="Svg.Model, Version=2.0.0.0, Culture=neutral, PublicKeyToken=dafe96fe6c845a74, processorArchitecture=MSIL">
-      <HintPath>..\packages\Svg.Model.2.0.0\lib\net461\Svg.Model.dll</HintPath>
+    <Reference Include="Svg.Model, Version=2.0.0.1, Culture=neutral, PublicKeyToken=dafe96fe6c845a74, processorArchitecture=MSIL">
+      <HintPath>..\packages\Svg.Model.2.0.0.1\lib\net461\Svg.Model.dll</HintPath>
     </Reference>
-    <Reference Include="Svg.Skia, Version=2.0.0.0, Culture=neutral, PublicKeyToken=dafe96fe6c845a74, processorArchitecture=MSIL">
-      <HintPath>..\packages\Svg.Skia.2.0.0\lib\net461\Svg.Skia.dll</HintPath>
+    <Reference Include="Svg.Skia, Version=2.0.0.1, Culture=neutral, PublicKeyToken=dafe96fe6c845a74, processorArchitecture=MSIL">
+      <HintPath>..\packages\Svg.Skia.2.0.0.1\lib\net461\Svg.Skia.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Buffers, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
