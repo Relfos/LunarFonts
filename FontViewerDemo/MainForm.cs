@@ -1,6 +1,8 @@
-﻿using LunarLabs.Fonts;
+﻿using HarfBuzzSharp;
+using LunarLabs.Fonts;
 using SkiaSharp;
 using Svg;
+using Svg.Skia;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -18,6 +20,10 @@ namespace FontViewerDemo
     {
         private string _selectedPath;
         private static int _fontSize;
+        private static Color _foregroundColor;
+        private static Color _backgroundColor;
+
+        private static Random _random = new Random();
 
         public MainForm()
         {
@@ -26,12 +32,12 @@ namespace FontViewerDemo
             LoadFontPath(@"C:\Windows\Fonts");
         }
 
-        static Bitmap ConvertToBitmap(GlyphBitmap image, bool fullColor)
+        static Bitmap ConvertToBitmap(GlyphBitmap image)
         {
             var bmp = new Bitmap(image.Width, image.Height);
 
             using (Graphics g = Graphics.FromImage(bmp))
-                g.Clear(Color.Transparent);
+                g.Clear(_backgroundColor);
 
             for (int y = 0; y < image.Height; y++)
             {
@@ -44,7 +50,7 @@ namespace FontViewerDemo
                     byte blue = image.Pixels[pixelIndex + 2];
                     byte alpha = image.Pixels[pixelIndex + 3];
 
-                    Color color = (fullColor ? Color.FromArgb(alpha, red, green, blue) : Color.FromArgb(alpha, 0, 0, 0));
+                    Color color = Color.FromArgb(alpha, red, green, blue);
                     bmp.SetPixel(x, y, color);
                 }
             }
@@ -56,27 +62,29 @@ namespace FontViewerDemo
         {
             var bytes = File.ReadAllBytes(fontFileName);
 
-            var font = new LunarLabs.Fonts.Font(bytes);
+            var font = new LunarLabs.Fonts.Font(bytes, null);
             font.SvgRender += SvgRender;
 
             int height = pixels * SDF_scale;
-            var scale = font.ScaleInPixels(height);
+            var svgScale = (float)height / font.UnitsPerEm;
+            var scale = font.IsSVG() ? (float)_fontSize / font.UnitsPerEm : font.ScaleInPixels(height);
 
-            var glyphs = new Dictionary<char, FontGlyph>();
-            var bitmaps = new Dictionary<char, Bitmap>();
-            foreach (var ch in phrase)
+            var metrics = new Dictionary<char, GlyphMetrics>();
+            var bitmaps = new Dictionary<char, GlyphBitmap>();
+
+            foreach (var codePoint in phrase)
             {
-                if (glyphs.ContainsKey(ch))
+                if (metrics.ContainsKey(codePoint))
                     continue;
 
-                var glyph = await font.RenderGlyph(ch, scale);
-                var isSVG = font.IsSVG(ch);
+                var glyphMetrics = await font.GetGlyphMetrics(codePoint, scale, scale, 0, 0);
+                var glyphBitmap = await font.RenderGlyph(codePoint, scale, _foregroundColor, _backgroundColor);
 
-                if (glyph == null)
+                if (glyphBitmap == null)
                     continue;
 
-                glyphs[ch] = glyph;
-                bitmaps[ch] = ConvertToBitmap(glyph.Image, isSVG);
+                metrics[codePoint] = glyphMetrics;
+                bitmaps[codePoint] = glyphBitmap;
             }
 
             int ascent, descent, lineGap;
@@ -94,23 +102,23 @@ namespace FontViewerDemo
             int x = 0;
             for (int i = 0; i < phrase.Length; i++)
             {
-                var ch = phrase[i];
-                FontGlyph glyph;
+                var codePoint = phrase[i];
+                GlyphMetrics glyphMetrics;
 
-                if (!glyphs.TryGetValue(ch, out glyph))
+                if (!metrics.TryGetValue(codePoint, out glyphMetrics))
                     continue;
 
                 var next = i < phrase.Length - 1 ? phrase[i + 1] : '\0';
+                var kerning = font.GetKerning(codePoint, next, scale);
+                var bounds = glyphMetrics.Bounds;
 
-                var kerning = font.GetKerning(ch, next, scale);
+                int y0 = height - baseLine + (int)bounds.Top;
+                int y1 = y0 + (int)bounds.Height;
 
-                int y0 = height - baseLine + glyph.yOfs;
-                int y1 = y0 + glyph.Image.Height;
+                int x0 = x + (int)bounds.Left - kerning;
+                int x1 = x0 + (int)bounds.Width;
 
-                int x0 = x + glyph.xOfs - kerning;
-                int x1 = x0 + glyph.Image.Width;
-
-                x += glyph.xAdvance;
+                x += (int)glyphMetrics.AdvanceWidth;
 
                 positions[i] = new Point(x0, y0);
 
@@ -132,25 +140,24 @@ namespace FontViewerDemo
                 positions[i].Y -= minY;
             }
 
-            var tempBmp = new GlyphBitmap(realWidth, realHeight);
+            var tempBmp = new GlyphBitmap(realWidth, realHeight, false, _backgroundColor);
             {
                 // draw the baseline height in blue color
                 var ly = height - (baseLine + minY);
-                //g.DrawLine(new Pen(Color.Blue), 0, ly, realWidth - 1, ly);
 
                 // now draw each character
                 x = 0;
                 for (int i = 0; i < phrase.Length; i++)
                 {
                     var ch = phrase[i];
-                    FontGlyph glyph;
+                    GlyphBitmap glyphBitmap;
 
-                    if (!glyphs.TryGetValue(ch, out glyph))
+                    if (!bitmaps.TryGetValue(ch, out glyphBitmap))
                         continue;
 
                     var bmp = bitmaps[ch];
                     var pos = positions[i];
-                    tempBmp.Draw(glyph.Image, pos.X, pos.Y);
+                    tempBmp.Draw(glyphBitmap, pos.X, pos.Y, _backgroundColor);
                 }
             }
 
@@ -159,43 +166,42 @@ namespace FontViewerDemo
                 tempBmp = DistanceFieldUtils.CreateDistanceField(tempBmp, SDF_scale, 16 * SDF_scale);
             }
 
-            return ConvertToBitmap(tempBmp, font.HasSVG());
+            return ConvertToBitmap(tempBmp);
         }
 
-        public static async Task<GlyphBitmap> SvgRender(LunarLabs.Fonts.Font font, string svgDoc, int glyph)
+        public static async Task<GlyphBitmap> SvgRender(LunarLabs.Fonts.Font font, string svgDoc, char codePoint, int glyph, object userData)
         {
-            var svgDocment = SvgDocument.FromSvg<SvgDocument>(svgDoc);
-            var svg = new Svg.Skia.SKSvg();
-
-            // Set the ViewBox to encompass the full glyph bounding box
-            int unitsPerEm = (int)font.UnitsPerEm;
-            svgDocment.ViewBox = new SvgViewBox(0, -unitsPerEm, unitsPerEm, unitsPerEm);
-            svgDocment.Width = svgDocment.Height = _fontSize;
-
-            var scale = font.ScaleInPixels(svgDocment.Height.Value);
-
-            int advanceWidth, leftSideBearing;
-            font.GetGlyphHMetrics(glyph, out advanceWidth, out leftSideBearing);
-            int xAdvance = (int)System.Math.Floor(advanceWidth * scale);
-
-            int ascent, descent, lineGap;
-            font.GetFontVMetrics(out ascent, out descent, out lineGap);
-            int baseLine = (int)svgDocment.Height.Value - (int)(ascent * scale);
-
-            using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(svgDocment.GetXML())))
+            try
             {
-                svg.Load(stream);
+                var svgDocument = SvgDocument.FromSvg<SvgDocument>(svgDoc);
 
-                var newHeight = _fontSize;
-                var newWidth = xAdvance + 1;
-                var bitmap = new SKBitmap((int)newWidth, (int)newHeight, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+                // Set the ViewBox to encompass the full glyph bounding box
+                int unitsPerEm = (int)font.UnitsPerEm;
+                svgDocument.ViewBox = new SvgViewBox(0, -unitsPerEm, unitsPerEm, unitsPerEm);
+                svgDocument.Width = svgDocument.Height = _fontSize;
+
+                var scale = (float)_fontSize / unitsPerEm;
+
+                int ascent, descent, lineGap;
+                font.GetFontVMetrics(out ascent, out descent, out lineGap);
+                var baseLine = (int)((font.UnitsPerEm - ascent) * scale);
+
+                var glyphMetrics = await font.GetGlyphMetrics(codePoint, scale, scale, 0, 0);
+                var svgRect = new RectangleF(glyphMetrics.Bounds.Left, glyphMetrics.Bounds.Top, glyphMetrics.Bounds.Width, glyphMetrics.Bounds.Height);
+
+                var svg = SKSvg.CreateFromSvgDocument(svgDocument);
+                var bitmap = new SKBitmap((int)glyphMetrics.Bounds.Width, (int)glyphMetrics.Bounds.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
 
                 using (var canvas = new SKCanvas(bitmap))
                     canvas.DrawPicture(svg.Picture, 0, -baseLine);
 
-                var glyphBitmap = new GlyphBitmap(bitmap.Width, bitmap.Height, bitmap.Bytes);
+                var glyphBitmap = new GlyphBitmap(bitmap.Width, bitmap.Height, bitmap.Bytes, true);
 
                 return glyphBitmap;
+            }
+            catch (Exception ex)
+            {
+                return null;
             }
         }
 
@@ -249,6 +255,8 @@ namespace FontViewerDemo
             var fontFileName = _selectedPath + @"\" + listBox1.SelectedItem;
             var sdfScale = sdfCheckbox.Checked ? (int)sdfScaleSelector.Value : 1;
             _fontSize = (int)fontHeightSelector.Value;
+            _foregroundColor = butForeground.BackColor;
+            _backgroundColor = butBackground.BackColor;
             outputBox.Image = await GenerateOutput(fontFileName, textInput.Text, _fontSize, sdfScale);
         }
 
@@ -270,6 +278,32 @@ namespace FontViewerDemo
         private void borderCheckbox_CheckedChanged(object sender, EventArgs e)
         {
             outputBox.BorderStyle = borderCheckbox.Checked ? BorderStyle.FixedSingle : BorderStyle.None;
+        }
+
+        private void butForeground_Click(object sender, EventArgs e)
+        {
+            using (ColorDialog colorDialog = new ColorDialog())
+            {
+                if (colorDialog.ShowDialog() == DialogResult.OK)
+                {
+                    butForeground.BackColor = colorDialog.Color;
+
+                    RefreshOutput();
+                }
+            }
+        }
+
+        private void butBackground_Click(object sender, EventArgs e)
+        {
+            using (ColorDialog colorDialog = new ColorDialog())
+            {
+                if (colorDialog.ShowDialog() == DialogResult.OK)
+                {
+                    butBackground.BackColor = colorDialog.Color;
+
+                    RefreshOutput();
+                }
+            }
         }
     }
 }

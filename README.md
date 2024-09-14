@@ -1,11 +1,6 @@
 # Lunar Fonts
-Font loader / rasterizer for TTF format in pure C#.
 
-This code is a direct port from the [Delphi version](https://github.com/Relfos/TERRA-Engine/blob/master/Engine/Image/TERRA_TTF.pas) which I ported some years ago from C. 
-
-The [original C version](https://github.com/nothings/stb/blob/master/stb_truetype.h) was written by [Sean Barrett](http://nothings.org/)
-
-Special thanks to [Ben Baker](https://github.com/benbaker76) for his bug fixes.
+Font loader and rasterizer for TrueType (.ttf) and OpenType (.otf) format in pure C#.
 
 ## Installation
 
@@ -51,6 +46,11 @@ It allows browsing of any folder that contains .ttf files and quickly preview cu
   <img src="/viewer.png">
 </p>
 
+# Credits
+
+- [Relfos](https://github.com/Relfos) - C# port of the [Delphi version](https://github.com/Relfos/TERRA-Engine/blob/master/Engine/Image/TERRA_TTF.pas).
+- [Sean Barrett](http://nothings.org/) - The [original C version](https://github.com/nothings/stb/blob/master/stb_truetype.h)
+- [Ben Baker](https://github.com/benbaker76) - Bug fixes, improvements and additional features (Eg. OpenType-SVG support, foreground and background colors).
 
 # Contact
 
